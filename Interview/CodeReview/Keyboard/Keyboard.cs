@@ -2,7 +2,7 @@
     🟢🟢🟢
     Задача заключалась в разработке моделей для реализации логики веб конструктора клавиатур (см. картинку)
     для онлайн магазина.
- 
+
     🔻🔻🔻
     Необходимо выполнить ревью представленного кода, размышляя вслух.
     Следует стараться упомянуть как можно больше возможных проблем.
@@ -13,6 +13,7 @@
 */
 
 using System.Runtime.Serialization.Formatters.Binary;
+using Microsoft.EntityFrameworkCore;
 
 namespace CodeReview.Keyboard;
 
@@ -31,8 +32,18 @@ public class Keyboard
         lock (keys)
         {
             KeyboardKeys.AddRange(keys);
-            return this;   
+            return this;
         }
+    }
+
+    public async ValueTask<bool> CheckPosition(int x)
+    {
+        if (KeyboardKeys.Count < 25)
+        {
+            return KeyboardKeys.Any(e => e.KeyPosition == x);
+        }
+
+        return await KeyboardKeys.AsQueryable().Select(elem => elem.KeyPosition).ContainsAsync(x);
     }
 
     public static bool operator ==(Keyboard first, Keyboard second)
@@ -54,15 +65,15 @@ public class Keyboard
         new BinaryFormatter().Serialize(stream, this);
         new BinaryFormatter().Serialize(otherStream, other);
 
-        return StringOf(stream.ToArray()) == StringOf(otherStream.ToArray());
+        return Stringify(stream.ToArray()) == Stringify(otherStream.ToArray());
     }
 
-    public virtual string StringOf(in byte[] data) => BitConverter.ToString(data).Replace("-", "");
-    
-    public static List<Keyboard> Previous = [];
+    public virtual string Stringify(in byte[] data) => BitConverter.ToString(data).Replace("-", "");
 
-    public static void Add(Keyboard keyboard) => Previous.Add(keyboard);
-    
+    public static List<Keyboard> Previous = new List<Keyboard>();
+
+    public new static void Add(Keyboard keyboard) => Previous.Add(keyboard);
+
     public static Keyboard CtrlZ()
     {
         var last = Previous.LastOrDefault();
@@ -70,11 +81,11 @@ public class Keyboard
         {
             Previous.Remove(last);
         }
+
         return last;
     }
 
-    public bool IsChanged()
-        => Previous.LastOrDefault()?.DeepEquals(this) ?? true;
+    public bool IsChanged() => Previous.LastOrDefault()?.DeepEquals(this) ?? true;
 }
 
 public class Key
